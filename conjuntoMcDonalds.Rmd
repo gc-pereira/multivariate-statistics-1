@@ -1,0 +1,187 @@
+---
+title: "Teste de hipóteses para o vetor de média no conjunto de dados do Mc Donalds"
+author: "Gabriel Pereira e Luiz Paulo"
+date: "2020/10"
+output: 
+  html_document
+---
+
+```{css, echo=FALSE}
+*{
+  font-family:Lucida Sans Unicode;
+  
+}
+
+pre{
+  border: 0px;
+  transition: .6s}
+
+pre:hover{
+  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+}
+
+img{
+  width: 80%;
+  align: center;
+  margin-left: 10%
+}
+
+div{
+  align-items: center;
+  text-align: justify;
+}
+
+@media screen and (max-width: 1000px){
+  body{
+    width:100%
+  }
+}
+
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Os pacotes que serão usados durante a análise são os que estão abaixo. Logo em segue temos a importação do conjunto de dados nutricionais do Mc Donalds utilizando o pacote readr.
+```{r imports, message=FALSE, warning=FALSE, collapse=FALSE}
+library(readr)
+library(car)
+library(tidyverse)
+library(nortest)
+library(MVN)
+library(psych)
+library(lares)
+
+DadosNutricionaisMcDonalds <- read_delim("C:/Users/55119/Desktop/multivariate/datasets/DadosNutricionaisMcDonalds.txt", ";", escape_double = FALSE, trim_ws = TRUE)
+```
+
+Para termos uma noção das variáveis e o que as mesmas representam, vejamos as primeiras linhas desse data frame.
+
+```{r .table-responsive-md}
+head(DadosNutricionaisMcDonalds)
+```
+
+Temos então 12 variáveis, algumas variáveis que seus valores são Strings e as demais são int ou float, porém todas as fazem referêcia aos lanches quanto seus valores nutricionais. Visto a "cabeça" do conjunto de dados do Mc Donalds e as variáveis presente, segue entao a remoção do tipo do produto que são diferentes de $\textit{sanduíches}$.
+
+``` {r remocao das comidas diferentes de sanduiche}
+sanduiches = filter(DadosNutricionaisMcDonalds, Tipo == "Sanduiches")
+sanduiches = sanduiches[,-1]
+
+for (i in 1:15) {
+  for (j in 9:10) {
+    sanduiches[i,j] = gsub(",",".", sanduiches[i,j])
+  }
+}
+
+sanduiches$Calcio = as.numeric(sanduiches$Calcio)
+sanduiches$Ferro = as.numeric(sanduiches$Ferro)
+```
+
+Acima também retiramos a coluna Tipo do alimento, já que como filtramos somente os sanduíches. Vejamos então algumas estatísticas descritivas das variáveis,
+
+```{r message=TRUE}
+describe(sanduiches[,-1])[,c(3,4,5,8,9)]
+```
+
+Podemos ver acima que a média de calorias dos sanduíches é 400kcal, com um desvio padrão alto, indicando que temos sanduiches com bastante caloria e outros com poucas calorias, além disso, outro motivo é a dispersão desses valores, provavelmente estão distantes um dos outros e podemos ver que o mesmo ocorre com o sódio. No geral as medianas estão próximas das médias. Abaixo temos as correlações,
+
+
+```{r ,correlogram, warning=FALSE, paged.print=FALSE}
+corr_cross(sanduiches[,-1],
+  max_pvalue = 0.05,
+  method = "pearson",
+  quiet = F
+)
+```
+
+e a mais alta é entre a variável $\textit{Calorias}$ e $\textit{Gorduras}$, com o coeficiente de correlação de Pearson de 96,7%, o que faz sentido pois as gorduras são os macronutrientes que possuem mais calorias por grama. A variável ferro está presente nas correlações menores, assim como o cálcio. Notamos também que o sódio e ferro possuem uma correlação negativa. Seguiremos então para a análise dos em termos de normalidade desses dados,
+
+## Normalidade
+
+```{r mardia}
+mvn(sanduiches[,-1], mvnTest = "royston", multivariatePlot = "qq",
+    univariateTest = "AD")$multivariateNormality
+
+mvn(sanduiches[,-1], mvnTest = "mardia", multivariatePlot = "qq",
+    univariateTest = "AD")$multivariateNormality
+
+
+mvn(sanduiches[,-1], mvnTest = "mardia", multivariatePlot = "qq",
+    univariateTest = "AD")$univariateNormality
+```
+O teste de normalidade multivariada retornou $\textit{valor-p}$ maior que os níveis de significância mais usuais, ou seja, não rejeitamos a hipótese nula $H_0$ de normalidade no teste de Mardia, porém no teste de royston temos que a normalidade foi rejeitada. A partir do gráfico chi-quare dos quantis da distribuição versus a distância de mahalanobis mostra que os pontos não caem sobre a reta traçada, o que nos faz desconfiar se esse teste de normalidade é mais poderoso para o tamanho da amostra que temos. Nos testes das distribuições marginais podemos ver que as variáveis $\textit{gorduras saturadas, fibras}$ e $\textit{cálcio}$ tiveram a hipótese de normalidade rejeitadas no teste de Anderson-Darling. 
+
+
+## Transformação de variáveis
+
+Com a rejeição da hipótese de normalidade multivariada, seguiremos então com a tentativa de normalização através de Box-Cox, como o método interativo para encontrar os valores de $\textit{lambda}$ são um tanto complexos, tenhamos então,
+
+```{r warning=FALSE}
+lambda = powerTransform(sanduiches[, -1],family = "bcnPower")$lambda
+
+box_cox <- function(x, lambda) {
+  for (i in 1:length(lambda)) {
+    if(lambda[i] == 0){
+      x[,i] = log(x[,i], base = exp(1))
+    }else{
+      x[,i] = (x[,i]^lambda[i] - 1)/lambda[i]
+    }
+  }
+  return(x)
+}
+bcSanduiches <- box_cox(sanduiches[,-1], lambda)
+
+mvn(bcSanduiches, mvnTest = "royston", multivariatePlot = "qq")$multivariateNormality
+mvn(bcSanduiches, mvnTest = "royston", multivariatePlot = "qq")$univariateNormality
+mvn(bcSanduiches, mvnTest = "mardia", multivariatePlot = "qq")$multivariateNormality
+mvn(bcSanduiches, mvnTest = "mardia", multivariatePlot = "qq")$univariateNormality
+mvn(bcSanduiches, mvnTest = "hz", multivariatePlot = "qq")$multivariateNormality
+mvn(bcSanduiches, mvnTest = "hz", multivariatePlot = "qq")$univariateNormality
+mvn(bcSanduiches, mvnTest = "dh", multivariatePlot = "qq")$multivariateNormality
+mvn(bcSanduiches, mvnTest = "dh", multivariatePlot = "qq")$univariateNormality
+```
+
+Como vemos acima, os testes de Henze-Zirkler, Doornik-Hansen, Royston rejeitaram a hipótese de normalidade multivariada, com $\textit{valores-p}$ bem baixo. Somente os teste de Mardia não rejeitaram a hipótese nula, porém em todos os testes, algumas marginais não estão normalizadas, seguirei a partir daqui com a normalização das marginais e depois o teste de normalidade multivariada. A primeira transformação a ser feita é $ln(Ferro)$, a segunda transformação será a Box-Cox para a variável $\textit{Gorduras Saturadas}$, visto que esta alcançou a normalidade por este método, 
+
+```{r trans uma a uma}
+sanduichesNormalizadasUmaAUma <- sanduiches[,-1]
+sanduichesNormalizadasUmaAUma$Ferro <- log(sanduiches$Ferro)
+sanduichesNormalizadasUmaAUma$GordurasSat <- bcSanduiches$GordurasSat
+```
+
+Depois de normalizadas algumas marginais, sobrou somente a variável $\textit{Fibras}$ que possui muitas observações iguais, dificultando qualquer transformação pois o padrão continuar o mesmo
+
+```{r norm fibras}
+sanduiches$Fibras
+```
+Verificando o teste de normalidade multivariada,
+```{r}
+mvn(sanduichesNormalizadasUmaAUma, mvnTest = "royston", multivariatePlot = "qq")$multivariateNormality
+mvn(sanduichesNormalizadasUmaAUma, mvnTest = "mardia", multivariatePlot = "qq")$multivariateNormality
+mvn(sanduichesNormalizadasUmaAUma, mvnTest = "hz", multivariatePlot = "qq")$multivariateNormality
+mvn(sanduichesNormalizadasUmaAUma, mvnTest = "dh", multivariatePlot = "qq")$multivariateNormality
+mvn(sanduichesNormalizadasUmaAUma, mvnTest = "energy", multivariatePlot = "qq")$multivariateNormality
+```
+Após as transformações alguns os pontos não caem sobre uma reta e dado que alguns 2 testes ainda estão rejeitando e 3 estão aceitando a normalidade multivariada, e temos somente uma variável que não segue a distribuição normal marginal, seguiremos então com o teste de Hotelling
+
+Para testar as hipóteses $H_0: \mu = \mu_0$ versus $H_1: \mu \neq \mu_0$ em que $\mu_0$ é um vetor médias hipotético, temos que a estatística de teste é 
+\begin{align*}
+  T^2 = \sqrt{n}(\bar{X} - \mu_0)'(\frac{\sum_{i = 1}^{n} (X_j - \bar{X})(X_j - \bar{X})'}{n-1})^{-1}\sqrt{n}(\bar{X} - \mu_0)
+\end{align*}
+tal que,
+\begin{align*}
+T^2 > \frac{(n-1)p}{n-p}F_{p,n-p}(\alpha)
+\end{align*}
+Utilizando como vetor de médias hipotético um vetor contendo as medianas, temos que o teste de Hotelling,
+```{r T square}
+n = length(sanduichesNormalizadasUmaAUma$Calorias)
+p = length(colnames(sanduichesNormalizadasUmaAUma))
+xbar = colMeans(sanduichesNormalizadasUmaAUma)
+mu_0 = as.matrix(describe(sanduichesNormalizadasUmaAUma)[,5], ncol = 1)
+t = n*t(xbar - mu_0)%*%solve(var(sanduichesNormalizadasUmaAUma))%*%(xbar - mu_0)
+valorP <- pf(((n-p)/(n-1)*p)*t, p, n-p, lower.tail = F)
+valorP
+```
+Então, com um valor-p menor que os níveis de significância mais usuais, temos evidências que $\mu \neq \mu_0$. O que ja era de se esperar, pois as medianas são distantes das médias, além disso a amostra que temos é pequena e alguns testes rejeitam a normalidade, o que pode compometer o poder desse teste. O gráfico quiquadrado para a transformação Box-Cox é mais comportado, porém mais teste rejeitam. Creio que para seguimos com um teste F é necessário que os testes de normalidade não falhem, já que este é sensível a estes tipos de desvio.
