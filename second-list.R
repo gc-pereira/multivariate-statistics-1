@@ -121,11 +121,11 @@ ic <- function(dif, lambda, n1, n2, p){
   return(matrix(c(l_inf, l_sup), ncol = 2))
 }
 
-ic_bonferroni <- function(dif, lambda, n1, n2, p, alpha){
+ic_bonferroni <- function(dif, lambda, n1, n2, p, alpha, spooled){
   sig <- alpha/(2*p)
   l_inf <- c()
   l_sup <- c()
-  for(i in 1:4){
+  for(i in 1:p){
     inf <- dif[i] - qt(sig, n1+n2-2)*sqrt((1/n1) + (1/n2))*sqrt(spooled[i,i])
     sup <- dif[i] + qt(sig, n1+n2-2)*sqrt((1/n1) + (1/n2))*sqrt(spooled[i,i])
     if(inf > sup){
@@ -140,7 +140,58 @@ ic_bonferroni <- function(dif, lambda, n1, n2, p, alpha){
 }
 
 ic(dif = dif, lambda = lambda, n1 = 25, n2 = 25, p = 4)
-ic_bonferroni(dif = dif, lambda = lambda, n1 = 25, n2 = 25, p = 4, alpha = 0.05)
+ic_bonferroni(dif = dif, lambda = lambda, n1 = 25, n2 = 25, p = 4, alpha = 0.05, spooled)
 
-# coeficiente de correlacao linear
+# coeficiente de combinacao linear
 solve(spooled)%*%(mu_fem - mu_masc)
+
+df3 <- read.csv('~/Desktop/multivariate/datasets/table_6_17.txt', sep = ';', header = T)
+head(df3)
+
+df_location_2 = df3 %>%
+  filter(location == 2) %>%
+  select(!'variety')
+df_location_2  = df_location_2[, -1]
+
+df_variety_1 = df3 %>%
+  filter(variety == 5) %>%
+  select(!'location')
+df_variety_1 = df_variety_1[,-2]
+
+df_variety_2 = df3 %>%
+  filter(variety == 6) %>%
+  select(!'location')
+df_variety_2 = df_variety_2[,-2]
+
+df_variety_3 = df3 %>%
+  filter(variety == 8) %>%
+  select(!'location')
+df_variety_3 = df_variety_3[,-2]
+
+mu_location2 <- mean_vector(df_location_2)
+mu_variety1 <- mean_vector(df_variety_1)
+mu_variety2 <- mean_vector(df_variety_2)
+mu_variety3 <- mean_vector(df_variety_3)
+
+s2_loc <- cov(df_location_2)
+s5_variety <- cov(df_variety_1)
+s6_variety <- cov(df_variety_2)
+s8_variety <- cov(df_variety_3)
+
+spooled_loc <- function(s1,s2,n1,n2){
+  coef1 <- (n1-1)/(n1+n2-2)
+  coef2 <- (n2-1)/(n1+n2-2)
+  spooled <- (coef1 * s1) + (coef2 * s2)
+  return(spooled)
+}
+
+spooled_loc(s2_loc, s5_variety, 6, 4)
+ic_bonferroni(
+              dif = mu_location2 - mu_variety1, 
+              lambda = eigen(spooled_loc(s2_loc, s5_variety, 6, 4))$values, 
+              n1 = 6, 
+              n2 = 4, 
+              p = 3, 
+              alpha = 0.05, 
+              spooled = spooled_loc(s2_loc, s5_variety, 6, 4)
+              )
