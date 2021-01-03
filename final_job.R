@@ -79,13 +79,16 @@ head(cor_df)
 
 correlacoes_ordenadas <- sort(cor(dados[,4:28]), decreasing = TRUE)
 
-soma = 0
-for(i in correlacoes_ordenadas){
-  if(i == 1){
-    soma <- soma + 1
+conta_elementos <- function(element, v){
+  soma = 0
+  for(i in v){
+    if(i == element){
+      soma <- soma + 1
+    }
   }
+  return(soma)
 }
-print(soma)
+conta_elementos(1, correlacoes_ordenadas)
 
 correlacoes_ordenadas <- unique(correlacoes_ordenadas[-c(1:25)])
 correlacoes_ordenadas
@@ -105,17 +108,10 @@ encontrar_numeros_dataframe <- function(list, df){
       t_and_f <- (round(i, 3) == round(df[,j], 3))
       for(k in 1:length(t_and_f)){
         if(t_and_f[k] == TRUE){
-          if(k == 1 | k == 2 & j == 1 | j == 2){
-            cols_positions[count] = paste('Y',j)
-            row_positions[count] = paste('Y',k)
-          }else if(k != 1 | k != 2 & j != 1 | j != 2){
-            cols_positions[count] = paste('X',j)
-            row_positions[count] = paste('X',k)
-          }
-          #cols_positions[count] = j
-          #row_positions[count] = k
-          #values[count] = i
-          #count = count + 1
+          cols_positions[count] = j
+          row_positions[count] = k
+          values[count] = i
+          count = count + 1
         }
       }
     }
@@ -135,17 +131,40 @@ encontrar_numeros_dataframe <- function(list, df){
   #geom_bar(stat="identity", color="black")+
   #scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"))+
   #theme_minimal()
-  
-  #for(i in 1:nrow(data)){
-  #  if(data$colunas[i] == 1 | data$colunas == 2 & data$linhas == 1 | data$colunas == 2){
-  #    sumpaste("X",cor_df[i,1],", Y",cor_df[i,2])
-  #
-  #}
   data <- data[-rows, ]
+  print(rows)
   return(data)
 }
-
 encontrar_numeros_dataframe(correlacoes_ordenadas[1:15], cor_df)
+
+converter_nome_variavel <- function(df){
+  convertido <- c()
+  soma = 1
+  for(i in df[,1]){
+    for(j in df[,2]){
+      if(i <= 2 & j <= 2){
+        convertido[soma] <- paste('Y',i, ', Y',j)
+        soma = soma + 1
+      }
+      if(i <= 2 & j > 2){
+        convertido[soma] <- paste('Y',i, ', X', j - 2)
+        soma = soma + 1
+      }
+      if(i > 2 & j <= 2){
+        convertido[soma] <- paste('X',i-2 , ', Y',j)
+        soma = soma + 1
+      }
+      if(i > 2 & j > 2){
+        convertido[soma] <- paste('X', i-2, ', Y', j-2)
+        soma = soma + 1
+      }
+    }
+  }
+  df[,4] <- convertido
+  return(df)
+}
+
+converter_nome_variavel(encontrar_numeros_dataframe(correlacoes_ordenadas[1:15], cor_df))
 
 # Boxplot de todas as variáveis originais
 library(RColorBrewer)
