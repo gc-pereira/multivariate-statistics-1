@@ -71,11 +71,81 @@ matrizcor<-ggcorr(dados[,-c(1:3)],
 
 round(cor(dados[,4:28]), digits = 5)
 
-corr_cross(dados, # name of dataset
-           max_pvalue = 0.9, # display only significant correlations (at 5% level)
-           top = 10, # display top 10 couples of variables (by correlation coefficient)
-           grid = F
+corr(dados[,-c(1:3)]
 )
+
+cor_df <- as.data.frame(cor(dados[,4:28]))
+head(cor_df)
+
+correlacoes_ordenadas <- sort(cor(dados[,4:28]), decreasing = TRUE)
+
+soma = 0
+for(i in correlacoes_ordenadas){
+  if(i == 1){
+    soma <- soma + 1
+  }
+}
+print(soma)
+
+correlacoes_ordenadas <- unique(correlacoes_ordenadas[-c(1:25)])
+correlacoes_ordenadas
+
+encontrar_numeros_dataframe <- function(list, df){
+  #listas e contadores utilizados
+  cols_positions <- c()
+  row_positions <- c()
+  values <- c()
+  rows <- c()
+  sum_ <- c()
+  count = 1
+  count2 <- 1
+  
+  for(i in list){
+    for(j in 1:ncol(df)){
+      t_and_f <- (round(i, 3) == round(df[,j], 3))
+      for(k in 1:length(t_and_f)){
+        if(t_and_f[k] == TRUE){
+          if(k == 1 | k == 2 & j == 1 | j == 2){
+            cols_positions[count] = paste('Y',j)
+            row_positions[count] = paste('Y',k)
+          }else if(k != 1 | k != 2 & j != 1 | j != 2){
+            cols_positions[count] = paste('X',j)
+            row_positions[count] = paste('X',k)
+          }
+          #cols_positions[count] = j
+          #row_positions[count] = k
+          #values[count] = i
+          #count = count + 1
+        }
+      }
+    }
+  }
+  data <- data_frame(
+                     colunas = cols_positions, 
+                     linhas = row_positions,
+                     correlacoes = values
+                     )
+  for(i in 1:nrow(data)){
+    if(i %% 2 == 0){
+      rows[count2] = i
+      count2 = count2 + 1
+    }
+  }
+  #ggplot(df, aes(x=dose, y=len, fill=dose))+
+  #geom_bar(stat="identity", color="black")+
+  #scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"))+
+  #theme_minimal()
+  
+  #for(i in 1:nrow(data)){
+  #  if(data$colunas[i] == 1 | data$colunas == 2 & data$linhas == 1 | data$colunas == 2){
+  #    sumpaste("X",cor_df[i,1],", Y",cor_df[i,2])
+  #
+  #}
+  data <- data[-rows, ]
+  return(data)
+}
+
+encontrar_numeros_dataframe(correlacoes_ordenadas[1:15], cor_df)
 
 # Boxplot de todas as variáveis originais
 library(RColorBrewer)
@@ -122,7 +192,9 @@ qqnorm1<-ggplot.data %>%
 ## direito do gráfico, principalmente nos resíduos associados a variável 
 ## "P_FORMAL", o que pode nos dar indicios de certos problemas de normalidade 
 ## com relação a tal variável.Já a outra variável parece apresentar um bom 
-##comportamento, apenas com pequenos desvios no canto superior direito do gráfico. Realiza-se os testes de normalidade univariada de anderson-darling, shapiro-wilk,lilliefors, cramer von-misses, shapiro-francia como abaixo, tomando nivel de significância $\alpha = 0.05$:
+##comportamento, apenas com pequenos desvios no canto superior direito do gráfico. 
+#Realiza-se os testes de normalidade univariada de anderson-darling, shapiro-wilk,lilliefors, 
+#cramer von-misses, shapiro-francia como abaixo, tomando nivel de significância $\alpha = 0.05$:
 
 taxa_bf.ad = ad.test(res1$Y1)$p.value; taxa_bf.ad
 taxa_bf.sw = shapiro.test(res1$Y1)$p.value; taxa_bf.sw
@@ -417,3 +489,4 @@ max(e.out$values)
 
 ## modelo final 
 summary(modelo3)
+
