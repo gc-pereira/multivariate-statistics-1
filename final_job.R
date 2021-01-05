@@ -77,7 +77,7 @@ corr(dados[,-c(1:3)]
 cor_df <- as.data.frame(cor(dados[,4:28]))
 head(cor_df)
 
-correlacoes_ordenadas <- sort(cor(dados[,4:28]), decreasing = TRUE)
+correlacoes_ordenadas <- sort(abs(cor(dados[,4:28])), decreasing = TRUE)
 
 conta_elementos <- function(element, v){
   soma = 0
@@ -132,7 +132,6 @@ encontrar_numeros_dataframe <- function(list, df){
   #scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"))+
   #theme_minimal()
   data <- data[-rows, ]
-  print(rows)
   return(data)
 }
 encontrar_numeros_dataframe(correlacoes_ordenadas[1:15], cor_df)
@@ -143,24 +142,29 @@ converter_nome_variavel <- function(df){
   for(i in df[,1]){
     for(j in df[,2]){
       if(i <= 2 & j <= 2){
-        convertido[soma] <- paste('Y',i, ', Y',j)
+        convert <- paste('Y',i, ', Y',j)
+        append(convertido, convert, after = length(convertido))
         soma = soma + 1
       }
       if(i <= 2 & j > 2){
-        convertido[soma] <- paste('Y',i, ', X', j - 2)
+        convert <- paste('Y',i, ', X', j - 2)
+        append(convertido, convert, after = length(convertido))
         soma = soma + 1
       }
       if(i > 2 & j <= 2){
-        convertido[soma] <- paste('X',i-2 , ', Y',j)
+        convert <- paste('X',i-2 , ', Y',j)
+        append(convertido, convert, after = length(convertido))
         soma = soma + 1
       }
       if(i > 2 & j > 2){
-        convertido[soma] <- paste('X', i-2, ', Y', j-2)
+        convert <- paste('X', i-2, ', X', j-2)
+        append(convertido, convert, after = length(convertido))
         soma = soma + 1
       }
     }
   }
-  df[,4] <- convertido
+  df['variáveis'] <- convertido
+  print(convertido)
   return(df)
 }
 
